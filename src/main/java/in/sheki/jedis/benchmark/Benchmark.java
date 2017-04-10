@@ -29,6 +29,7 @@ public class Benchmark
     private final String data;
     private final CountDownLatch shutDownLatch;
     private long totalNanoRunTime;
+    private int noJedisConn;
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
@@ -41,6 +42,7 @@ public class Benchmark
         poolConfig.maxActive = noJedisConn;
         this.pool = new JedisPool(poolConfig, host, port);
         this.data = RandomStringUtils.random(dataSize);
+        this.noJedisConn = noJedisConn;
         shutDownLatch = new CountDownLatch(noOps);
 
     }
@@ -102,37 +104,41 @@ public class Benchmark
         		System.out.println("not support type, -w = hset or hget");
         	}
         }
-        long startTime = System.nanoTime();
+        long startTime = System.currentTimeMillis();
         executor.resume();
         executor.shutdown();
         shutDownLatch.await();
-        totalNanoRunTime = System.nanoTime() - startTime;
+        totalNanoRunTime = System.currentTimeMillis() - startTime;
     }
 
     public void printStats()
     {
+        System.out.println("======benchmark======");
+        System.out.printf(" %d requests completed in %.2f seconds\n", noOps_, (float)totalNanoRunTime/1000);
+        System.out.printf(" %d parallel clients\n", this.noJedisConn);
+        System.out.printf(" %d bytes payload\n", this.data.getBytes().length);
+        System.out.println(" keep alive: " + executor.getMaximumPoolSize());
+        
         List<Long> points = new ArrayList<Long>();
         setRunTimes.drainTo(points);
         Collections.sort(points);
         long sum = 0;
+        int i = 0, curlat = 0;
+        float perc, reqpersec;
+        int pointsSize = points.size();
+        reqpersec = (float)pointsSize/(float)totalNanoRunTime/1000;
         for (Long l : points)
         {
+        	if(l/1000000 != curlat || i == pointsSize - 1) {
+        		curlat = (int) (l/1000000);
+        		perc = ((float)(i+1)*100)/pointsSize;
+        		System.out.printf("%.2f%% <= %d milliseconds\n", perc, curlat);
+        	}
             sum += l;
+            i++;
         }
-        System.out.println("Data size :" + data.length());
-        System.out.println("Total count :" + noOps_);
-        System.out.println("Threads : " + executor.getMaximumPoolSize());
-        System.out.println("Time Test Ran for (ms) : " + TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime));
-        long pos;
-        System.out.println("Average : " + TimeUnit.NANOSECONDS.toMicros(sum / points.size()) + " us");
-        System.out.println("50 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() / 2) - 1)) + " us");
-        System.out.println("90 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 90 / 100) - 1)) + " us");
-        System.out.println("95 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 95 / 100) - 1)) + " us");
-        System.out.println("99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 99 / 100) - 1)) + " us");
-        pos = (points.size() * 999 / 1000) - 1;
-        System.out.println("99.9 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((int)pos)) + " us");
-        System.out.println("100 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get(points.size() - 1)) + " us");
-        System.out.println((noOps_ * 1000 * 50 / TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime)) + " Operations per second");
+        System.out.printf("%.2f requests per second\n\n", reqpersec);
+        
     }
 
     public static void main(String[] args) throws InterruptedException
