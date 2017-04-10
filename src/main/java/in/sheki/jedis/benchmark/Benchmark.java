@@ -57,8 +57,8 @@ public class Benchmark
 		public void run() {
 			String key = RandomStringUtils.random(15);
 			for (int i = 0; i < 50; i++) {
-				long startTime = System.nanoTime();
 				Jedis jedis = pool.getResource();
+				long startTime = System.nanoTime();
 				jedis.hset(key, RandomStringUtils.random(15), data);
 				setRunTimes.offer(System.nanoTime() - startTime);
 				pool.returnResource(jedis);
@@ -89,12 +89,18 @@ public class Benchmark
 		}
     }
 
-    public void performBenchmark() throws InterruptedException
+    public void performBenchmark(String type) throws InterruptedException
     {
         executor.pause();
         for (int i = 0; i < noOps_; i++)
         {
-            executor.submit(new HGetTask(shutDownLatch));
+        	if(type.equals("hset")){
+        		executor.submit(new HSetTask(shutDownLatch));
+        	} else if (type.equals("hget")) {
+        		executor.submit(new HGetTask(shutDownLatch));
+        	} else {
+        		System.out.println("not support type, -w = hset or hget");
+        	}
         }
         long startTime = System.nanoTime();
         executor.resume();
@@ -132,7 +138,7 @@ public class Benchmark
         CommandLineArgs cla = new CommandLineArgs();
         new JCommander(cla, args);
         Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
-        benchmark.performBenchmark();
+        benchmark.performBenchmark(cla.type);
         benchmark.printStats();
     }
 
