@@ -87,21 +87,23 @@ public class Benchmark
         long sum = 0;
         for (Long l : points)
         {
-        	System.out.println(l);
             sum += l;
         }
         System.out.println("Data size :" + data.length());
         System.out.println("Total count :" + noOps_);
         System.out.println("Threads : " + executor.getMaximumPoolSize());
         System.out.println("Time Test Ran for (ms) : " + TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime));
-        System.out.println("Average : " + TimeUnit.NANOSECONDS.toMillis(sum / points.size()));
-        System.out.println("50 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get((points.size() / 2) - 1)));
-        System.out.println("90 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get((points.size() * 90 / 100) - 1)));
-        System.out.println("95 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get((points.size() * 95 / 100) - 1)));
-        System.out.println("99 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get((points.size() * 99 / 100) - 1)));
-        System.out.println("99.9 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get((points.size() * 999 / 1000) - 1)));
-        System.out.println("100 % <=" + TimeUnit.NANOSECONDS.toMillis(points.get(points.size() - 1)));
-        System.out.println((noOps_ * 1000 / TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime)) + " Operations per second");
+        System.out.println("Average : " + TimeUnit.NANOSECONDS.toMicros(sum / points.size()) + " us");
+        System.out.println("50 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() / 2) - 1)) + " us");
+        System.out.println("60 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 60 / 100) - 1)) + " us");
+        System.out.println("70 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 70 / 100) - 1)) + " us");
+        System.out.println("80 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 80 / 100) - 1)) + " us");
+        System.out.println("90 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 90 / 100) - 1)) + " us");
+        System.out.println("95 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 95 / 100) - 1)) + " us");
+        System.out.println("99 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 99 / 100) - 1)) + " us");
+        System.out.println("99.9 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 999 / 1000) - 1)) + " us");
+        System.out.println("100 % <=" + TimeUnit.NANOSECONDS.toMicros(points.get(points.size() - 1)) + " us");
+        System.out.println((noOps_ * 1000 / TimeUnit.NANOSECONDS.toMicros(totalNanoRunTime)) + " Operations per second");
     }
 
     public static void main(String[] args) throws InterruptedException
