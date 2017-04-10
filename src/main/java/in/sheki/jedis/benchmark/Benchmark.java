@@ -133,7 +133,7 @@ public class Benchmark
         	if(l/1000000 != curlat || i == pointsSize - 1) {
         		curlat = (int) (l/1000000);
         		perc = ((float)(i+1)*100)/pointsSize;
-        		System.out.printf("%.2f%% <= %d milliseconds\n", perc, curlat);
+        		System.out.printf("%.5f%% <= %d milliseconds\n", perc, curlat);
         	}
             sum += l;
             i++;
