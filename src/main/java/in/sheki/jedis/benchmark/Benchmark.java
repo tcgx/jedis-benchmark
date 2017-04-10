@@ -54,18 +54,17 @@ public class Benchmark
             this.latch_ = latch;
         }
 
-        public void run()
-        {
-            long startTime = System.nanoTime();
-            Jedis jedis = pool.getResource();
-            String key = RandomStringUtils.random(15);
-            for (int i = 0; i < 50; i++) {
-            	jedis.hset(key, RandomStringUtils.random(15), data);
-            }
-            setRunTimes.offer(System.nanoTime() - startTime);
-            pool.returnResource(jedis);
-            latch_.countDown();
-        }
+		public void run() {
+			String key = RandomStringUtils.random(15);
+			for (int i = 0; i < 50; i++) {
+				long startTime = System.nanoTime();
+				Jedis jedis = pool.getResource();
+				jedis.hset(key, RandomStringUtils.random(15), data);
+				setRunTimes.offer(System.nanoTime() - startTime);
+				pool.returnResource(jedis);
+			}
+			latch_.countDown();
+		}
     }
 
     public void performBenchmark() throws InterruptedException
@@ -106,7 +105,7 @@ public class Benchmark
         System.out.println("99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 99 / 100) - 1)) + " us");
         System.out.println("99.9 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 999 / 1000) - 1)) + " us");
         System.out.println("100 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get(points.size() - 1)) + " us");
-        System.out.println((noOps_ * 1000 / TimeUnit.NANOSECONDS.toSeconds(totalNanoRunTime)) + " Operations per second");
+        System.out.println((noOps_ * 1000 * 50 / TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime)) + " Operations per second");
     }
 
     public static void main(String[] args) throws InterruptedException
