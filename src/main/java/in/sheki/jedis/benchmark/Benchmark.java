@@ -45,11 +45,11 @@ public class Benchmark
 
     }
 
-    class SetTask implements Runnable
+    class HSetTask implements Runnable
     {
         private CountDownLatch latch_;
 
-        SetTask(CountDownLatch latch)
+        HSetTask(CountDownLatch latch)
         {
             this.latch_ = latch;
         }
@@ -67,12 +67,34 @@ public class Benchmark
 		}
     }
 
+    class HGetTask implements Runnable
+    {
+        private CountDownLatch latch_;
+
+        HGetTask(CountDownLatch latch)
+        {
+            this.latch_ = latch;
+        }
+
+		public void run() {
+			String key = RandomStringUtils.random(15);
+			for (int i = 0; i < 50; i++) {
+				long startTime = System.nanoTime();
+				Jedis jedis = pool.getResource();
+				jedis.hget(key, RandomStringUtils.random(15));
+				setRunTimes.offer(System.nanoTime() - startTime);
+				pool.returnResource(jedis);
+			}
+			latch_.countDown();
+		}
+    }
+
     public void performBenchmark() throws InterruptedException
     {
         executor.pause();
         for (int i = 0; i < noOps_; i++)
         {
-            executor.submit(new SetTask(shutDownLatch));
+            executor.submit(new HGetTask(shutDownLatch));
         }
         long startTime = System.nanoTime();
         executor.resume();
@@ -97,13 +119,11 @@ public class Benchmark
         System.out.println("Time Test Ran for (ms) : " + TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime));
         System.out.println("Average : " + TimeUnit.NANOSECONDS.toMicros(sum / points.size()) + " us");
         System.out.println("50 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() / 2) - 1)) + " us");
-        System.out.println("60 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 60 / 100) - 1)) + " us");
-        System.out.println("70 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 70 / 100) - 1)) + " us");
-        System.out.println("80 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 80 / 100) - 1)) + " us");
         System.out.println("90 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 90 / 100) - 1)) + " us");
         System.out.println("95 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 95 / 100) - 1)) + " us");
         System.out.println("99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 99 / 100) - 1)) + " us");
         System.out.println("99.9 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 999 / 1000) - 1)) + " us");
+        System.out.println("99.99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 9999 / 10000) - 1)) + " us");
         System.out.println("100 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get(points.size() - 1)) + " us");
         System.out.println((noOps_ * 1000 * 50 / TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime)) + " Operations per second");
     }
