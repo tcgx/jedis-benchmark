@@ -113,12 +113,6 @@ public class Benchmark
 
     public void printStats()
     {
-        System.out.println("======benchmark======");
-        System.out.printf(" %d requests completed in %.2f seconds\n", noOps_, (float)totalNanoRunTime/1000);
-        System.out.printf(" %d parallel clients\n", this.noJedisConn);
-        System.out.printf(" %d bytes payload\n", this.data.getBytes().length);
-        System.out.println(" keep alive: " + executor.getMaximumPoolSize());
-        
         List<Long> points = new ArrayList<Long>();
         setRunTimes.drainTo(points);
         Collections.sort(points);
@@ -127,6 +121,13 @@ public class Benchmark
         float perc, reqpersec;
         int pointsSize = points.size();
         reqpersec = (float)pointsSize/((float)totalNanoRunTime/1000);
+
+        System.out.println("======benchmark======");
+        System.out.printf(" %d requests completed in %.2f seconds\n", pointsSize, (float)totalNanoRunTime/1000);
+        System.out.printf(" %d parallel clients\n", this.noJedisConn);
+        System.out.printf(" %d bytes payload\n", this.data.getBytes().length);
+        System.out.println(" keep alive: " + executor.getMaximumPoolSize());
+        
         for (Long l : points)
         {
         	if(l/1000000 != curlat || i == pointsSize - 1) {
