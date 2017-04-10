@@ -126,7 +126,7 @@ public class Benchmark
         int i = 0, curlat = 0;
         float perc, reqpersec;
         int pointsSize = points.size();
-        reqpersec = (float)pointsSize/(float)totalNanoRunTime/1000;
+        reqpersec = (float)pointsSize/((float)totalNanoRunTime/1000);
         for (Long l : points)
         {
         	if(l/1000000 != curlat || i == pointsSize - 1) {
