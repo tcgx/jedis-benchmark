@@ -56,7 +56,7 @@ public class Benchmark
         {
             long startTime = System.nanoTime();
             Jedis jedis = pool.getResource();
-            jedis.set(RandomStringUtils.random(15), data);
+            jedis.hset(RandomStringUtils.random(15), RandomStringUtils.random(15), data);
             setRunTimes.offer(System.nanoTime() - startTime);
             pool.returnResource(jedis);
             latch_.countDown();
