@@ -123,7 +123,6 @@ public class Benchmark
         System.out.println("95 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 95 / 100) - 1)) + " us");
         System.out.println("99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 99 / 100) - 1)) + " us");
         System.out.println("99.9 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 999 / 1000) - 1)) + " us");
-        System.out.println("99.99 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get((points.size() * 9999 / 10000) - 1)) + " us");
         System.out.println("100 % <= " + TimeUnit.NANOSECONDS.toMicros(points.get(points.size() - 1)) + " us");
         System.out.println((noOps_ * 1000 * 50 / TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime)) + " Operations per second");
     }
