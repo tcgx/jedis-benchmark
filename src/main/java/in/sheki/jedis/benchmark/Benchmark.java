@@ -1,17 +1,19 @@
 package in.sheki.jedis.benchmark;
 
-import com.beust.jcommander.JCommander;
-import org.apache.commons.lang.RandomStringUtils;
-import org.apache.commons.pool.impl.GenericObjectPool;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.commons.lang.RandomStringUtils;
+import org.apache.commons.pool.impl.GenericObjectPool;
+
+import com.beust.jcommander.JCommander;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 /**
  * @author abhishekk
@@ -85,9 +87,11 @@ public class Benchmark
         long sum = 0;
         for (Long l : points)
         {
+        	System.out.println(l);
             sum += l;
         }
         System.out.println("Data size :" + data.length());
+        System.out.println("Total count :" + noOps_);
         System.out.println("Threads : " + executor.getMaximumPoolSize());
         System.out.println("Time Test Ran for (ms) : " + TimeUnit.NANOSECONDS.toMillis(totalNanoRunTime));
         System.out.println("Average : " + TimeUnit.NANOSECONDS.toMillis(sum / points.size()));
