@@ -79,8 +79,8 @@ public class Benchmark
 		public void run() {
 			String key = RandomStringUtils.random(15);
 			for (int i = 0; i < 50; i++) {
-				long startTime = System.nanoTime();
 				Jedis jedis = pool.getResource();
+				long startTime = System.nanoTime();
 				jedis.hget(key, RandomStringUtils.random(15));
 				setRunTimes.offer(System.nanoTime() - startTime);
 				pool.returnResource(jedis);
