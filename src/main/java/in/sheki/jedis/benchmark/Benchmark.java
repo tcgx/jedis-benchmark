@@ -162,7 +162,7 @@ public class Benchmark
             i++;
         }
         System.out.printf("%.2f requests per second\n\n", reqpersec);
-        setRunTimes = new LinkedBlockingQueue<>();
+        setRunTimes = new LinkedBlockingQueue<Long>();
     }
 
     public static void main(String[] args) throws InterruptedException
