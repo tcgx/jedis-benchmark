@@ -129,7 +129,9 @@ public class Benchmark
         
         long startTime = System.currentTimeMillis();
         executor.resume();
-        executor.shutdown();
+        if (type.equals("hget")) {
+        	executor.shutdown();
+        }
         shutDownLatch.await();
         totalNanoRunTime = System.currentTimeMillis() - startTime;
     }
