@@ -94,9 +94,8 @@ public class Benchmark
 				String re = jedis.hget(mkey, mfield);
 				setRunTimes.offer(System.nanoTime() - startTime);
 				pool.returnResource(jedis);
-				System.out.println(latch_.getCount());
 			} catch (Exception e) {
-				System.out.println(e.getMessage());
+				System.out.println(e);
 			} finally {
 				latch_.countDown();
 			}
