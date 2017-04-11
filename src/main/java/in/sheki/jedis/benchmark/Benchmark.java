@@ -30,6 +30,7 @@ public class Benchmark
     private final CountDownLatch shutDownLatch;
     private long totalNanoRunTime;
     private int noJedisConn;
+    private String type;
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
@@ -93,6 +94,7 @@ public class Benchmark
 
     public void performBenchmark(String type) throws InterruptedException
     {
+    	this.type = type;
         executor.pause();
         for (int i = 0; i < noOps_; i++)
         {
@@ -122,11 +124,11 @@ public class Benchmark
         int pointsSize = points.size();
         reqpersec = (float)pointsSize/((float)totalNanoRunTime/1000);
 
-        System.out.println("======benchmark======");
+        System.out.printf("======%s======", this.type);
         System.out.printf(" %d requests completed in %.2f seconds\n", pointsSize, (float)totalNanoRunTime/1000);
         System.out.printf(" %d parallel clients\n", this.noJedisConn);
         System.out.printf(" %d bytes payload\n", this.data.getBytes().length);
-        System.out.println(" keep alive: " + executor.getMaximumPoolSize());
+        System.out.println(" executor size : " + executor.getMaximumPoolSize());
         
         for (Long l : points)
         {
