@@ -23,14 +23,15 @@ public class Benchmark
 
 
     private final int noOps_;
-    private final LinkedBlockingQueue<Long> setRunTimes = new LinkedBlockingQueue<Long>();
+    private LinkedBlockingQueue<Long> setRunTimes = new LinkedBlockingQueue<Long>();
     private PausableThreadPoolExecutor executor;
     private final JedisPool pool;
     private final String data;
-    private final CountDownLatch shutDownLatch;
+    private CountDownLatch shutDownLatch;
     private long totalNanoRunTime;
     private int noJedisConn;
     private String type;
+    private final List<Keys> keys = new ArrayList<>();
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
@@ -59,12 +60,15 @@ public class Benchmark
 
 		public void run() {
 			String key = RandomStringUtils.random(15);
+			String field;
 			for (int i = 0; i < 50; i++) {
 				Jedis jedis = pool.getResource();
+				field = RandomStringUtils.random(15);
 				long startTime = System.nanoTime();
-				jedis.hset(key, RandomStringUtils.random(15), data);
+				jedis.hset(key, field, data);
 				setRunTimes.offer(System.nanoTime() - startTime);
 				pool.returnResource(jedis);
+				keys.add(new Keys(key, field));
 			}
 			latch_.countDown();
 		}
@@ -73,39 +77,56 @@ public class Benchmark
     class HGetTask implements Runnable
     {
         private CountDownLatch latch_;
+        private Keys key_;
 
-        HGetTask(CountDownLatch latch)
+        HGetTask(CountDownLatch latch, Keys key)
         {
             this.latch_ = latch;
+            this.key_ = key;
         }
 
 		public void run() {
-			String key = RandomStringUtils.random(15);
-			for (int i = 0; i < 50; i++) {
-				Jedis jedis = pool.getResource();
-				long startTime = System.nanoTime();
-				jedis.hget(key, RandomStringUtils.random(15));
-				setRunTimes.offer(System.nanoTime() - startTime);
-				pool.returnResource(jedis);
-			}
+			String mkey = key_.getK();
+			String mfield = key_.getV();
+			Jedis jedis = pool.getResource();
+			long startTime = System.nanoTime();
+			jedis.hget(mkey, mfield);
+			setRunTimes.offer(System.nanoTime() - startTime);
+			pool.returnResource(jedis);
 			latch_.countDown();
 		}
+    }
+
+    class Keys {
+    	private String k;
+    	private String v;
+    	
+    	Keys(String k, String v) {
+    		this.k = k;
+    		this.v = v;
+    	}
+    	
+    	public String getK() {return k;}
+    	public String getV() {return v;}
     }
 
     public void performBenchmark(String type) throws InterruptedException
     {
     	this.type = type;
         executor.pause();
-        for (int i = 0; i < noOps_; i++)
-        {
-        	if(type.equals("hset")){
-        		executor.submit(new HSetTask(shutDownLatch));
-        	} else if (type.equals("hget")) {
-        		executor.submit(new HGetTask(shutDownLatch));
-        	} else {
-        		System.out.println("not support type, -w = hset or hget");
-        	}
-        }
+		if (type.equals("hset")) {
+			for (int i = 0; i < noOps_; i++) {
+				executor.submit(new HSetTask(shutDownLatch));
+			}
+		} else if (type.equals("hget")) {
+			shutDownLatch = new CountDownLatch(keys.size());
+			for (Keys key : keys) {
+				executor.submit(new HGetTask(shutDownLatch, key));
+			}
+		} else {
+    		System.out.println("not support type, -w = hset or hget");
+    	}
+        
         long startTime = System.currentTimeMillis();
         executor.resume();
         executor.shutdown();
@@ -141,7 +162,7 @@ public class Benchmark
             i++;
         }
         System.out.printf("%.2f requests per second\n\n", reqpersec);
-        
+        setRunTimes = new LinkedBlockingQueue<>();
     }
 
     public static void main(String[] args) throws InterruptedException
@@ -149,7 +170,9 @@ public class Benchmark
         CommandLineArgs cla = new CommandLineArgs();
         new JCommander(cla, args);
         Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
-        benchmark.performBenchmark(cla.type);
+        benchmark.performBenchmark("hset");
+        benchmark.printStats();
+        benchmark.performBenchmark("hget");
         benchmark.printStats();
     }
 
