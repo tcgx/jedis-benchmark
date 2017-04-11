@@ -31,7 +31,7 @@ public class Benchmark
     private long totalNanoRunTime;
     private int noJedisConn;
     private String type;
-    private List<Keys> keys = new ArrayList<Keys>();
+    private LinkedBlockingQueue<Keys> keyQueue = new LinkedBlockingQueue<Keys>();
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
@@ -68,7 +68,7 @@ public class Benchmark
 				jedis.hset(key, field, data);
 				setRunTimes.offer(System.nanoTime() - startTime);
 				pool.returnResource(jedis);
-				keys.add(new Keys(key, field));
+				keyQueue.offer(new Keys(key, field));
 			}
 			latch_.countDown();
 		}
@@ -86,14 +86,20 @@ public class Benchmark
         }
 
 		public void run() {
-			String mkey = key_.getK();
-			String mfield = key_.getV();
-			Jedis jedis = pool.getResource();
-			long startTime = System.nanoTime();
-			jedis.hget(mkey, mfield);
-			setRunTimes.offer(System.nanoTime() - startTime);
-			pool.returnResource(jedis);
-			latch_.countDown();
+			try{
+				String mkey = key_.getK();
+				String mfield = key_.getV();
+				Jedis jedis = pool.getResource();
+				long startTime = System.nanoTime();
+				String re = jedis.hget(mkey, mfield);
+				setRunTimes.offer(System.nanoTime() - startTime);
+				pool.returnResource(jedis);
+				System.out.println(latch_.getCount());
+			} catch (Exception e) {
+				System.out.println(e.getMessage());
+			} finally {
+				latch_.countDown();
+			}
 		}
     }
 
@@ -119,6 +125,8 @@ public class Benchmark
 				executor.submit(new HSetTask(shutDownLatch));
 			}
 		} else if (type.equals("hget")) {
+			List<Keys> keys = new ArrayList<Keys>();
+			keyQueue.drainTo(keys);
 			shutDownLatch = new CountDownLatch(keys.size());
 			for (Keys key : keys) {
 				executor.submit(new HGetTask(shutDownLatch, key));
@@ -147,7 +155,7 @@ public class Benchmark
         int pointsSize = points.size();
         reqpersec = (float)pointsSize/((float)totalNanoRunTime/1000);
 
-        System.out.printf("======%s======", this.type);
+        System.out.printf("======%s======\n", this.type);
         System.out.printf(" %d requests completed in %.2f seconds\n", pointsSize, (float)totalNanoRunTime/1000);
         System.out.printf(" %d parallel clients\n", this.noJedisConn);
         System.out.printf(" %d bytes payload\n", this.data.getBytes().length);
