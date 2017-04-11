@@ -31,7 +31,7 @@ public class Benchmark
     private long totalNanoRunTime;
     private int noJedisConn;
     private String type;
-    private final List<Keys> keys = new ArrayList<>();
+    private List<Keys> keys = new ArrayList<Keys>();
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
