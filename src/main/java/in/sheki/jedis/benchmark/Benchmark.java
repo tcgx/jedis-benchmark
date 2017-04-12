@@ -61,15 +61,15 @@ public class Benchmark
 		public void run() {
 			String key = RandomStringUtils.random(15);
 			String field;
+			Jedis jedis = pool.getResource();
 			for (int i = 0; i < 50; i++) {
-				Jedis jedis = pool.getResource();
 				field = RandomStringUtils.random(15);
 				long startTime = System.nanoTime();
 				jedis.hset(key, field, data);
 				setRunTimes.offer(System.nanoTime() - startTime);
-				pool.returnResource(jedis);
-				keyQueue.offer(new Keys(key, field));
+//				keyQueue.offer(new Keys(key, field));
 			}
+			pool.returnResource(jedis);
 			latch_.countDown();
 		}
     }
@@ -181,9 +181,7 @@ public class Benchmark
         Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
         benchmark.performBenchmark("hset");
         benchmark.printStats();
-        benchmark.performBenchmark("hget");
-        benchmark.printStats();
+//        benchmark.performBenchmark("hget");
+//        benchmark.printStats();
     }
-
-
 }
