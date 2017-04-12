@@ -21,9 +21,8 @@ import redis.clients.jedis.JedisPool;
 public class Benchmark
 {
 
-
     private final int noOps_;
-    private LinkedBlockingQueue<Long> setRunTimes = new LinkedBlockingQueue<Long>();
+    private final LinkedBlockingQueue<Long> setRunTimes = new LinkedBlockingQueue<Long>();
     private PausableThreadPoolExecutor executor;
     private final JedisPool pool;
     private final String data;
@@ -31,7 +30,7 @@ public class Benchmark
     private long totalNanoRunTime;
     private int noJedisConn;
     private String type;
-    private LinkedBlockingQueue<Keys> keyQueue = new LinkedBlockingQueue<Keys>();
+    private int fieldCount = 50;
 
 
     public Benchmark(final int noOps, final int noThreads, final int noJedisConn, final String host, final int port, int dataSize)
@@ -46,7 +45,6 @@ public class Benchmark
         this.data = RandomStringUtils.random(dataSize);
         this.noJedisConn = noJedisConn;
         shutDownLatch = new CountDownLatch(noOps);
-
     }
 
     class HSetTask implements Runnable
@@ -59,60 +57,84 @@ public class Benchmark
         }
 
 		public void run() {
-			String key = RandomStringUtils.random(15);
-			String field;
 			Jedis jedis = pool.getResource();
-			for (int i = 0; i < 50; i++) {
-				field = RandomStringUtils.random(15);
-				long startTime = System.nanoTime();
-				jedis.hset(key, field, data);
-				setRunTimes.offer(System.nanoTime() - startTime);
-//				keyQueue.offer(new Keys(key, field));
+			try {
+				String key = RandomStringUtils.random(15);
+				String field;
+				BenchmarkData benchMarkData = new BenchmarkData(key);
+				for (int i = 0; i < fieldCount; i++) {
+					field = RandomStringUtils.random(15);
+					long startTime = System.nanoTime();
+					jedis.hset(key, field, data);
+					setRunTimes.offer(System.nanoTime() - startTime);
+					benchMarkData.addField(field);
+				}
+				// save to memory
+				GlobalCache.cacheQueue.offer(benchMarkData);
+			} catch (Exception e) {
+				System.out.println(e);
+			} finally {
+				pool.returnResource(jedis);
+				latch_.countDown();
 			}
-			pool.returnResource(jedis);
-			latch_.countDown();
 		}
-    }
+	}
 
     class HGetTask implements Runnable
     {
         private CountDownLatch latch_;
-        private Keys key_;
+        private BenchmarkData benchmarkData;
 
-        HGetTask(CountDownLatch latch, Keys key)
+        HGetTask(CountDownLatch latch, BenchmarkData benchmarkData)
         {
             this.latch_ = latch;
-            this.key_ = key;
+            this.benchmarkData= benchmarkData;
         }
 
 		public void run() {
+			Jedis jedis = pool.getResource();
 			try{
-				String mkey = key_.getK();
-				String mfield = key_.getV();
-				Jedis jedis = pool.getResource();
-				long startTime = System.nanoTime();
-				String re = jedis.hget(mkey, mfield);
-				setRunTimes.offer(System.nanoTime() - startTime);
-				pool.returnResource(jedis);
+				String hashKey = benchmarkData.getKey();
+				List<String> fieldList = benchmarkData.getFiledList();
+				for (String field : fieldList) {
+					long startTime = System.nanoTime();
+					jedis.hget(hashKey, field);
+					setRunTimes.offer(System.nanoTime() - startTime);
+				}
 			} catch (Exception e) {
 				System.out.println(e);
 			} finally {
+				pool.returnResource(jedis);
 				latch_.countDown();
 			}
 		}
     }
 
-    class Keys {
-    	private String k;
-    	private String v;
-    	
-    	Keys(String k, String v) {
-    		this.k = k;
-    		this.v = v;
-    	}
-    	
-    	public String getK() {return k;}
-    	public String getV() {return v;}
+    class HGetAllTask implements Runnable
+    {
+        private CountDownLatch latch_;
+        private BenchmarkData benchmarkData;
+
+        HGetAllTask(CountDownLatch latch, BenchmarkData benchmarkData)
+        {
+            this.latch_ = latch;
+            this.benchmarkData= benchmarkData;
+        }
+
+		public void run() {
+			Jedis jedis = pool.getResource();
+			try{
+				String hashKey = benchmarkData.getKey();
+				long startTime = System.nanoTime();
+				jedis.hgetAll(hashKey);
+				setRunTimes.offer(System.nanoTime() - startTime);
+			} catch (Exception e) {
+				System.out.println(e);
+			} finally {
+				pool.returnResource(jedis);
+				latch_.countDown();
+			}
+		}
     }
 
     public void performBenchmark(String type) throws InterruptedException
@@ -124,11 +146,12 @@ public class Benchmark
 				executor.submit(new HSetTask(shutDownLatch));
 			}
 		} else if (type.equals("hget")) {
-			List<Keys> keys = new ArrayList<Keys>();
-			keyQueue.drainTo(keys);
-			shutDownLatch = new CountDownLatch(keys.size());
-			for (Keys key : keys) {
-				executor.submit(new HGetTask(shutDownLatch, key));
+			for (BenchmarkData benchmarkData : GlobalCache.cacheQueue) {
+				executor.submit(new HGetTask(shutDownLatch, benchmarkData));
+			}
+		} else if (type.equals("hgetall")){
+			for (BenchmarkData benchmarkData : GlobalCache.cacheQueue) {
+				executor.submit(new HGetAllTask(shutDownLatch, benchmarkData));
 			}
 		} else {
     		System.out.println("not support type, -w = hset or hget");
@@ -136,9 +159,7 @@ public class Benchmark
         
         long startTime = System.currentTimeMillis();
         executor.resume();
-        if (type.equals("hget")) {
-        	executor.shutdown();
-        }
+        executor.shutdown();
         shutDownLatch.await();
         totalNanoRunTime = System.currentTimeMillis() - startTime;
     }
@@ -148,7 +169,6 @@ public class Benchmark
         List<Long> points = new ArrayList<Long>();
         setRunTimes.drainTo(points);
         Collections.sort(points);
-        long sum = 0;
         int i = 0, curlat = 0;
         float perc, reqpersec;
         int pointsSize = points.size();
@@ -167,21 +187,42 @@ public class Benchmark
         		perc = ((float)(i+1)*100)/pointsSize;
         		System.out.printf("%.5f%% <= %d milliseconds\n", perc, curlat);
         	}
-            sum += l;
             i++;
         }
         System.out.printf("%.2f requests per second\n\n", reqpersec);
-        setRunTimes = new LinkedBlockingQueue<Long>();
     }
 
     public static void main(String[] args) throws InterruptedException
     {
         CommandLineArgs cla = new CommandLineArgs();
         new JCommander(cla, args);
-        Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
-        benchmark.performBenchmark("hset");
-        benchmark.printStats();
-//        benchmark.performBenchmark("hget");
-//        benchmark.printStats();
+        if (cla.type.equals("hset")) {
+        	Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+			benchmark.performBenchmark("hset");
+			benchmark.printStats();
+        } else if (cla.type.equals("hget")) {
+        	Benchmark hset= new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+			hset.performBenchmark("hset");
+			hset.printStats();
+			
+			if(GlobalCache.cacheQueue.size() != 0) {
+				Benchmark hget= new Benchmark(GlobalCache.cacheQueue.size(), cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+				hget.performBenchmark("hget");
+				hget.printStats();
+			}
+
+        } else if (cla.type.equals("hgetall")) {
+        	Benchmark hset= new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+			hset.performBenchmark("hset");
+			hset.printStats();
+			
+			if(GlobalCache.cacheQueue.size() != 0) {
+				Benchmark hgetall= new Benchmark(GlobalCache.cacheQueue.size(), cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+				hgetall.performBenchmark("hgetall");
+				hgetall.printStats();
+			}
+        } else {
+        	System.out.println("only support 'hset' 'hget' 'hgetall'");
+        }
     }
 }
