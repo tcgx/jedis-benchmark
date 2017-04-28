@@ -13,9 +13,5 @@ The program assumes defaults for all the values, which can be changed by using t
 -  -c : number of Jedis connections. Default is 1.
 -  -h : Host on which redis is running. Default is "localhost".
 -  -p : Redis port. Default is 6379.
--  s  : Data size to be performed on the set operation. (currently only performs the set operation).
-
-
-##TODO
-- Currently only performs the set operations. Need to extend it to perform all opeartions supported by Jedis.
-
+-  -s : Data size to be performed on the set operation. (currently only performs the set operation).
+-  -w : 支持hset，hget，hgetall，hsetttl等hash操作，hget，hgetall，hsetttl都是先执行hset操作，每个hash key对应50个field，可以通过修改源码更改。每个key和field为15个长度随机字符串。
