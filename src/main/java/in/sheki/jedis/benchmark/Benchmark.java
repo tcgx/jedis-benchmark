@@ -136,6 +136,38 @@ public class Benchmark
 			}
 		}
     }
+    
+    class HSetTTLTask implements Runnable
+    {
+        private CountDownLatch latch_;
+
+        HSetTTLTask(CountDownLatch latch)
+        {
+            this.latch_ = latch;
+        }
+
+		public void run() {
+			Jedis jedis = pool.getResource();
+			try {
+				String key = RandomStringUtils.random(15);
+				String field;
+				BenchmarkData benchMarkData = new BenchmarkData(key);
+				for (int i = 0; i < fieldCount; i++) {
+					field = RandomStringUtils.random(15);
+					long startTime = System.nanoTime();
+					jedis.hset(key, field, data);
+					setRunTimes.offer(System.nanoTime() - startTime);
+					benchMarkData.addField(field);
+				}
+				jedis.expire(key, 2);
+			} catch (Exception e) {
+				System.out.println(e);
+			} finally {
+				pool.returnResource(jedis);
+				latch_.countDown();
+			}
+		}
+	}
 
     public void performBenchmark(String type) throws InterruptedException
     {
@@ -152,6 +184,10 @@ public class Benchmark
 		} else if (type.equals("hgetall")){
 			for (BenchmarkData benchmarkData : GlobalCache.cacheQueue) {
 				executor.submit(new HGetAllTask(shutDownLatch, benchmarkData));
+			}
+		} else if (type.equals("hsetttl")) {
+			for (int i = 0; i < noOps_; i++) {
+				executor.submit(new HSetTTLTask(shutDownLatch));
 			}
 		} else {
     		System.out.println("not support type, -w = hset or hget");
@@ -221,6 +257,10 @@ public class Benchmark
 				hgetall.performBenchmark("hgetall");
 				hgetall.printStats();
 			}
+        } else if(cla.type.equals("hsetttl")) {
+        	Benchmark benchmark = new Benchmark(cla.noOps, cla.noThreads, cla.noConnections, cla.host, cla.port, cla.dataSize);
+			benchmark.performBenchmark("hsetttl");
+			benchmark.printStats();
         } else {
         	System.out.println("only support 'hset' 'hget' 'hgetall'");
         }
